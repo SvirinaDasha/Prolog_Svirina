@@ -1,0 +1,71 @@
+:- dynamic board_size/2.
+:- dynamic position/2.
+
+% Ініціалізація: введення розміру дошки та стартової позиції
+initialize :-
+    write("Enter board size (N M): "), nl,
+    read(N), read(M),
+    write("Enter start position (X Y): "), nl,
+    read(X), read(Y),
+    retractall(board_size(_, _)),
+    retractall(position(_, _)),
+    assert(board_size(N, M)),
+    assert(position(X, Y)),
+    knights_tour(X, Y).
+
+% Перевірка, чи координати в межах дошки
+valid_position(X, Y) :-
+    board_size(N, M),
+    between(1, N, X),
+    between(1, M, Y).
+
+% Можливі ходи коня
+knight_move((X, Y), (NX, NY)) :-
+    member((DX, DY), [(2, 1), (2, -1), (-2, 1), (-2, -1),
+                      (1, 2), (1, -2), (-1, 2), (-1, -2)]),
+    NX is X + DX, NY is Y + DY,
+    valid_position(NX, NY).
+
+% Пошук Гамільтонового шляху (всі клітини мають бути відвідані)
+hamiltonian_path(Start, Path) :-
+    board_size(N, M),
+    Total is N * M,
+    path(Start, [Start], Total, Path).
+
+% Пошук маршруту (Backtracking)
+path(_, Path, 1, Path).
+path(Current, Visited, Left, FullPath) :-
+    knight_move(Current, Next),
+    \+ member(Next, Visited),
+    NewLeft is Left - 1,
+    path(Next, [Next | Visited], NewLeft, FullPath).
+
+% Виведення маршруту у вигляді матриці
+print_board(Path) :-
+    board_size(N, M),
+    findall(Row, (between(1, N, I), findall(Cell, (between(1, M, J), find_index((I, J), Path, Cell)), Row)), Matrix),
+    print_matrix(Matrix).
+
+% Пошук номера клітини у шляху
+find_index(Cell, Path, Index) :- nth1(Index, Path, Cell), !.
+find_index(_, _, 0).
+
+% Виведення матриці
+print_matrix([]).
+print_matrix([Row | Rest]) :-
+    print_row(Row), nl,
+    print_matrix(Rest).
+
+print_row([]).
+print_row([X | Rest]) :-
+    (X > 9 -> format("~w  ", [X]) ; format(" ~w  ", [X])),
+    print_row(Rest).
+
+% Запуск алгоритму
+knights_tour(X, Y) :-
+    hamiltonian_path((X, Y), Path) ->
+        reverse(Path, CorrectOrder),
+        write("Knight's tour found:"), nl,
+        print_board(CorrectOrder)
+    ;
+        write("No solution found!"), nl.
