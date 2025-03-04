@@ -1,0 +1,91 @@
+:- dynamic visited/2.
+
+% Визначаємо всі можливі рухи коня
+move(2, 1). move(1, 2). move(-2, 1). move(-1, 2).
+move(2, -1). move(1, -2). move(-2, -1). move(-1, -2).
+
+% Початок туру
+knight_tour(N, M, X, Y) :-
+    length(Board, N),                    % Створення дошки N x M
+    maplist(length_(M), Board),          % Створюємо ряди дошки
+    maplist(fill_zeros, Board),          % Заповнюємо дошку нулями
+    retractall(visited(_, _)),           % Очищуємо візити для нового туру
+    mark_visited(Board, X, Y, 1, NewBoard), % Відмічаємо початкову позицію
+    tour(N, M, X, Y, 1, NewBoard).       % Розпочинаємо тур
+
+% Завантаження розміру рядка
+length_(M, Row) :- length(Row, M).
+
+% Заповнення рядка нулями
+fill_zeros(Row) :- maplist(=(0), Row).
+
+% Функція для відмічання відвіданих клітинок
+mark_visited(Board, X, Y, N, NewBoard) :-
+    nth1(Y, Board, Row),
+    replace_nth1(X, Row, N, NewRow),
+    replace_nth1(Y, Board, NewRow, NewBoard).
+
+% Основний алгоритм туру коня
+tour(N, M, _, _, N2, Board) :- 
+    N2 is N * M,                          % Якщо всі клітинки відвідані
+    print_board(Board).                   % Виводимо дошку
+tour(N, M, X, Y, Step, Board) :-
+    Step1 is Step + 1,
+    findall((NextX, NextY), possible_moves(N, M, X, Y, Board, NextX, NextY), Moves),
+    (   Moves = [] -> 
+        writeln('Не вдалося знайти можливі ходи!'),
+        print_board(Board)
+    ;   warnsdorff(Moves, N, M, Board, BestMoveX, BestMoveY),
+        mark_visited(Board, BestMoveX, BestMoveY, Step1, NewBoard),
+        tour(N, M, BestMoveX, BestMoveY, Step1, NewBoard)
+    ).
+
+% Перевіряємо можливі рухи коня
+possible_moves(N, M, X, Y, Board, NewX, NewY) :-
+    move(DX, DY),                         
+    NewX is X + DX, NewY is Y + DY,       % Обчислюємо нові координати
+    within_bounds(N, M, NewX, NewY),      % Перевірка, чи в межах дошки
+    not_visited(Board, NewX, NewY).       % Перевірка, чи клітинка не була відвідана
+
+% Перевіряємо, що координати у межах дошки
+within_bounds(N, M, X, Y) :-
+    X > 0, X =< M,
+    Y > 0, Y =< N.
+
+% Перевіряємо, що клітинка не була відвідана
+not_visited(Board, X, Y) :-
+    nth1(Y, Board, Row),
+    nth1(X, Row, 0).
+
+% Алгоритм вибору ходу за правилом Варнсдорфа
+warnsdorff(Moves, N, M, Board, BestMoveX, BestMoveY) :-
+    findall((Count, NewX, NewY), (
+        member((NewX, NewY), Moves),
+        count_moves(NewX, NewY, N, M, Board, Count)
+    ), MovesWithCounts),
+    sort(MovesWithCounts, [(_, BestMoveX, BestMoveY)|_]).
+
+
+count_moves(X, Y, N, M, Board, Count) :-
+    findall((NextX, NextY), possible_moves(N, M, X, Y, Board, NextX, NextY), Moves),
+    length(Moves, Count).
+
+% Виведення дошки
+print_board([]).
+print_board([Row|Rows]) :-
+    writeln(Row),
+    print_board(Rows).
+
+
+replace_nth1(1, [_|T], X, [X|T]).
+replace_nth1(N, [H|T], X, [H|NewT]) :-
+    N > 1, N1 is N - 1,
+    replace_nth1(N1, T, X, NewT).
+
+
+start :-
+    write('Введіть розмір дошки N M: '),
+    read(N), read(M),
+    write('Введіть початкову позицію коня (X Y): '),
+    read(X), read(Y),
+    knight_tour(N, M, X, Y).
